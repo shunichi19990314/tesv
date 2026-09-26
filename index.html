@@ -4,51 +4,78 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Browser Linux VM</title>
+    <!-- ダミーのファビコンを設定して404エラーを消す -->
+    <link rel="icon" href="data:,">
     <style>
         body {
             margin: 0;
             background-color: #1e1e1e;
             color: #fff;
-            font-family: sans-serif;
+            font-family: monospace;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
         }
-        h1 { margin-bottom: 10px; }
-        #status { color: #00ff00; margin-bottom: 20px; }
-        #screen {
+        h1 { margin-bottom: 10px; font-size: 1.2rem; }
+        #status { color: #00ff00; margin-bottom: 20px; font-size: 0.9rem; }
+        #screen_container {
             background: #000;
             border: 2px solid #444;
+            padding: 4px;
+            box-shadow: 0 0 20px rgba(0,255,0,0.1);
+        }
+        /* v86の画面がここに描画される */
+        #screen_container div { 
+            white-space: pre; 
+            font-family: monospace; 
+            font-size: 14px; 
+            line-height: 14px; 
         }
     </style>
 </head>
 <body>
-    <h1>🐧 Browser Linux VM</h1>
-    <p id="status">読み込み中...</p>
-    <div id="screen"></div>
 
-    <script src="https://copy.sh/v86/lib/v86.js"></script>
+    <h1>🐧 Browser Linux VM (v86)</h1>
+    <p id="status">エミュレーターを読み込み中...</p>
+    
+    <div id="screen_container">
+        <div style="white-space: pre; font: 14px monospace; line-height: 14px"></div>
+        <canvas style="display: none"></canvas>
+    </div>
+
+    <!-- ✅ 修正点: 正しい公式CDNのURLに変更 -->
+    <script src="https://unpkg.com/v86@latest/build/libv86.js"></script>
+    
     <script>
         const statusEl = document.getElementById('status');
 
-        var emulator = new V86({
-            wasm_path: "https://copy.sh/v86/lib/v86.wasm",
-            memory_size: 64 * 1024 * 1024,
-            vga_memory_size: 2 * 1024 * 1024,
-            screen_container: document.getElementById("screen"),
-            bios: { url: "https://copy.sh/v86/bios/seabios.bin" },
-            vga_bios: { url: "https://copy.sh/v86/bios/vgabios.bin" },
-            // ネットワーク設定を一旦削除
-            autostart: true,
-            start_cb: function() {
-                statusEl.innerText = "Linux起動中...";
-            },
-            emulator_started_cb: function() {
-                statusEl.innerText = "✅ 起動完了！";
-            }
-        });
+        // V86が正しく読み込まれたか確認
+        if (typeof V86 === 'undefined') {
+            statusEl.innerText = "❌ エラー: v86ライブラリの読み込みに失敗しました";
+            statusEl.style.color = "red";
+        } else {
+            statusEl.innerText = "Linuxを起動中... (初回は1分ほどかかることがあります)";
+            
+            var emulator = new V86({
+                wasm_path: "https://unpkg.com/v86@latest/build/v86.wasm",
+                memory_size: 64 * 1024 * 1024,      // 64MB
+                vga_memory_size: 2 * 1024 * 1024,    // 2MB
+                screen_container: document.getElementById("screen_container"),
+                bios: { url: "https://unpkg.com/v86@latest/bios/seabios.bin" },
+                vga_bios: { url: "https://unpkg.com/v86@latest/bios/vgabios.bin" },
+                // 軽量なArch LinuxまたはAlpineのイメージを使用
+                cdrom: { url: "https://copy.sh/v86/images/archlinux.iso" },
+                autostart: true,
+                start_cb: function() {
+                    statusEl.innerText = "カーネル起動中...";
+                },
+                emulator_started_cb: function() {
+                    statusEl.innerText = "✅ 起動完了！ (ログイン: root / パスワード: root)";
+                }
+            });
+        }
     </script>
 </body>
 </html>
